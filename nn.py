@@ -8,7 +8,7 @@ class Neuron():
     '''
     Class that handles the neruons function in the neural network
     '''
-    def __init__(self, weights_list = [], bias = 0.0):
+    def __init__(self, weights_list = None, bias = 0.0):
         self.weights_list = weights_list #[w1,w2,w3...wn]
         self.bias = bias
 
@@ -69,11 +69,11 @@ class NeuralNetwork():
 
         #Input layer
         input_layer = self.network_layers_list[0]
-        input_list = input_layer.inputLayerForwardPass(features)
+        activations_list = input_layer.inputLayerForwardPass(features)
 
         #Hidden layer(s)
         for hidden_layer in self.network_layers_list[1:-1]:
-            activations_list = hidden_layer.layerForwardPass(input_list)
+            activations_list = hidden_layer.layerForwardPass(activations_list)
 
         #Output layer
         output_layer = self.network_layers_list[-1]
@@ -141,6 +141,39 @@ def generateOutputLayer(output_neuron_amount, hidden_layer_neuron_amount):
         output_layer_neurons.append(Neuron(weight_list, 0.0))
     return NetworkLayer(output_layer_neurons)
 
+def generateCorrectLabels(dataset, output_neuron_amount):
+    '''
+    Generates a 
+    '''
+    correct_label_list = []
+    for datapoint in dataset:
+        label = datapoint[0]  # first column is the class label
+        one_hot = [0] * output_neuron_amount
+        one_hot[label] = 1
+        correct_label_list.append(one_hot)
+
+    return correct_label_list
+
+def calculateLogLoss(correct_label_list, label_predictions_list):
+        '''
+        Returns the entropy loss of a list of datapoints
+        '''
+        label_predictions_amount = len(label_predictions_list)
+        correct_label_list = correct_label_list[:label_predictions_amount]
+
+        log_loss = 0.0
+
+        for i in range(len(correct_label_list)):  # loop over datapoints
+            correct_labels = correct_label_list[i]
+            predicted_labels = label_predictions_list[i]
+
+            for j in range(len(correct_labels)):  # loop over classes
+                if correct_labels[j] == 1:  # only the true class contributes
+                    log_loss += -math.log(predicted_labels[j])
+
+        return log_loss / len(correct_label_list)
+                
+
 def main():
     if len(sys.argv) != 6:
         print("Usage: python nn.py NInput NHidden NOutput train.csv.gz test.csv.gz")
@@ -166,8 +199,14 @@ def main():
                              generateHiddenLayer(NHidden, NInput), 
                              generateOutputLayer(NOutput, NHidden)])
     
-    activations = network.forwardPass(training_data[1])
-    print(activations)
+    prediction_neuron_activations = []
+    for datapoint in training_data:
+        prediction_neuron_activations.append(network.forwardPass(datapoint))
+    print(prediction_neuron_activations)
+
+    correct_label_list = generateCorrectLabels(training_data, NOutput)
+    log_loss = calculateLogLoss(correct_label_list, prediction_neuron_activations)
+    print(log_loss)
     
 
 if __name__ == "__main__":
