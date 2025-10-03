@@ -8,7 +8,7 @@ class Neuron():
     '''
     Class that handles the neruons function in the neural network
     '''
-    def __init__(self, weights_list = None, bias = 0.0):
+    def __init__(self, weights_list = [], bias = 0.0):
         self.weights_list = weights_list #[w1,w2,w3...wn]
         self.bias = bias
 
@@ -17,6 +17,8 @@ class Neuron():
         Calculates the linear transformation of the inputs:
         z = (w1 * x1 + w2 * x2 + ... + wn * xn) + bias
         '''
+        if len(self.weights_list) != len(inputs_list):
+            raise ValueError(f"weights ({len(self.weights_list)}) != inputs ({len(inputs_list)})")
         sum = 0
         for i in range(len(self.weights_list)):
             sum += self.weights_list[i] * inputs_list[i]
@@ -33,21 +35,27 @@ class Neuron():
         '''
         Procceses an input through a neuron
         '''
-        z = self.linearTransformation(inputs_list)
-        return self.sigmoidActivation(z)    
+        return self.sigmoidActivation(self.linearTransformation(inputs_list))    
 
 class NetworkLayer():
-    def __init__(self, neurons_list):
+    def __init__(self, neurons_list, size = 0):
         self.neurons_list = neurons_list #[n1,n2,n3...nn]
+        self.size = size
+
+    def inputLayerForwardPass(self, inputs_list):
+        '''
+        Parses the data through the input layer, ensuring a dataset larger than the input layer is handled correctly
+        '''
+        return inputs_list[:self.size]
 
     def layerForwardPass(self, inputs_list):
         '''
         Genereates list of each neuron activation in a layer 
         '''
-        outputs_list = []
+        neuron_activations = []
         for neuron in self.neurons_list:
-            outputs_list.append(neuron.neuronForwardPass(inputs_list))
-        return outputs_list
+            neuron_activations.append(neuron.neuronForwardPass(inputs_list))
+        return neuron_activations
 
 class NeuralNetwork():
     def __init__(self, network_layers_list):
@@ -55,12 +63,23 @@ class NeuralNetwork():
     
     def forwardPass(self, inputs_list):
         '''
-        Passes activations from start layer to the last layer
+        Passes activations from input layer through hidden layer to output layer
         '''
-        outputs_list = inputs_list
-        for layer in self.network_layers_list:
-            outputs_list = layer.layerForwardPass(outputs_list)
-        return outputs_list
+        features = inputs_list[1:]
+
+        #Input layer
+        input_layer = self.network_layers_list[0]
+        input_list = input_layer.inputLayerForwardPass(features)
+
+        #Hidden layer(s)
+        for hidden_layer in self.network_layers_list[1:-1]:
+            activations_list = hidden_layer.layerForwardPass(input_list)
+
+        #Output layer
+        output_layer = self.network_layers_list[-1]
+        activations_list = output_layer.layerForwardPass(activations_list)
+
+        return activations_list
     
 def loadDataset(filename):
     """
@@ -83,12 +102,13 @@ def generateInputLayer(input_neurons, dataset):
     '''
     if len(dataset[0]) - 1 < input_neurons:
         print(f"Not enough training data for {input_neurons} neurons")
-        exit()
+        sys.exit(1)
     
     input_layer_neurons =[]
     for i in range(0, input_neurons, 1):
         input_layer_neurons.append(Neuron())
-    return NetworkLayer(input_layer_neurons)
+
+    return NetworkLayer(input_layer_neurons, size=input_neurons)
 
 def generateRandomWeight(lower_bound, upper_bound):
     '''
@@ -145,7 +165,9 @@ def main():
     network = NeuralNetwork([generateInputLayer(NInput, training_data), 
                              generateHiddenLayer(NHidden, NInput), 
                              generateOutputLayer(NOutput, NHidden)])
-
+    
+    activations = network.forwardPass(training_data[1])
+    print(activations)
     
 
 if __name__ == "__main__":
